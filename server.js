@@ -1,13 +1,10 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const mysql = require('mysql2');
-const {router} = require("express/lib/application");
-
 const app = express();
 
 const corsOptions = {
-    origin: "http://localhost:5173"
+    origin: ["http://localhost:5173", "https://i.imgur.com/"],
 };
 
 app.use(cors(corsOptions));
@@ -27,35 +24,12 @@ db.sequelize.sync()
         console.log("Failed to sync db: " + err.message);
     });
 
-// db.sequelize.sync({ force: true }).then(() => {
-//     console.log("Drop and re-sync db.");
-// });
+require("./routes/scripts.routes")(app);
+require("./routes/admins.routes")(app);
+require("./routes/dms.routes")(app);
+require("./routes/timeslots.routes")(app);
+require("./routes/reservations.routes")(app);
 
-
-
-db.sequelize.sync();
-// const db1 = mysql.createConnection({
-//     host: 'localhost',
-//     user: 'root', // 替换为你的 MySQL 用户名
-//     password: 'root', // 替换为你的 MySQL 密码
-//     database: 'jinghua' // 替换为你的数据库名称
-// });
-//
-// // simple route
-// app.get("/", (req, res) => {
-//     const query = 'SELECT * FROM scripts';
-//     db1.query(query, (err, result) => {
-//         if(err) return console.log(err);
-//         else{
-//             console.log('get all scripts from db')
-//             return res.json(result);
-//
-//         }
-//     })
-//     // res.json({ message: "Welcome to jinghua application." });
-// });
-
-require("./routes/script.routes")(app);
 
 // set port, listen for requests
 const PORT = process.env.PORT || 8080;

@@ -1,9 +1,10 @@
 const db = require("../models");
+const {QueryTypes} = require("sequelize");
 const Script = db.scripts;
 const Op = db.Sequelize.Op;
+const sequelize = db.sequelize;
 
-// Create and Save a new Tutorial
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
     const script = {
         scriptName: req.body.scriptName,
         scriptPrice: req.body.scriptPrice,
@@ -12,21 +13,34 @@ exports.create = (req, res) => {
         scriptPlayersNumberDescription: req.body.scriptPlayersNumberDescription,
         scriptDescription: req.body.scriptDescription,
         scriptDuration: req.body.scriptDuration,
+        scriptImage: req.body.scriptImage,
     }
-    Script.create(script)
-        .then(data => {
-            res.send(data);
+    await Script.findAll({
+        attributes: ['scriptName'],
+        where: {scriptName: req.body.scriptName}
+    })
+        .then((result) => {
+            // console.log(script.scriptName);
+            // console.log(result);
+            if (result.length !== 0) {
+                res.send({message: '已经有相同名字的剧本了'});
+            } else {
+                Script.create(script)
+                    .then(data => {
+                        // console.log(data);
+                        res.send({message: "上传成功"});
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        res.send(err.message);
+                    })
+            }
         })
-        .catch(err => {
-            res.send(err);
-        })
-
 };
 
-// Retrieve all Tutorials from the database.
 exports.findAll = async (req, res) => {
-    Script.findAll({
-        attributes: ['scriptName', 'scriptType'],
+    await Script.findAll({
+        attributes: ['scriptName', 'scriptType', 'scriptPlayersNumber', 'scriptPlayersNumberDescription', 'scriptDescription', 'scriptDuration', 'scriptPrice', 'scriptImage'],
         }
     )
         .then(data => {
@@ -34,24 +48,23 @@ exports.findAll = async (req, res) => {
         })
         .catch(err => {
             res.status(500).send({
-                message:
-                    err.message || "Some error occurred while retrieving tutorials."
+                err
             });
+            console.log(err)
         });
 
 
 };
 
-// Find a single Tutorial with an id
-exports.findOne = (req, res) => {
+exports.findScript = async (req, res) => {
     const name = req.params.name;
-    console.log(req.params.name);
-    Script.findAll({
-        attributes: ['scriptName', 'scriptType'],
+    await Script.findAll({
+        attributes: ['scriptName', 'scriptType', 'scriptPlayersNumber', 'scriptPlayersNumberDescription', 'scriptDescription', 'scriptDuration', 'scriptPrice', 'scriptImage'],
         where: {
-            scriptName: name
+            scriptName: {
+                [Op.like]: `%${name}%`
+            }
         }
-
     })
     .then(data => {
         if(data){
@@ -64,52 +77,125 @@ exports.findOne = (req, res) => {
     })
         .catch(err => {
             res.status(500).send({
-                message: `Some error occurred while retrieving script with name`
+                err
             })
         });
 };
 
-// Update a Tutorial by the id in the request
-exports.update = (req, res) => {
+exports.update = async (req, res) => {
+    await Script.findAll({
+        attributes: ['scriptName'],
+        where: {scriptName: req.body.scriptName}
+    })
+        .then((result) => {
+            if(result.length !== 0 && result[0].scriptName !== req.body.oldName) {
+                res.send({success: false, message: '已经有相同名字的剧本了'} );
+            }
+            else {
+                sequelize.query(
+                    'update scripts ' +
+                    `set scriptName = "${req.body.scriptName}", ` +
+                    `scriptType = "${req.body.scriptType}", ` +
+                    `scriptPlayersNumber = "${req.body.scriptPlayersNumber}", ` +
+                    `scriptPlayersNumberDescription = "${req.body.scriptPlayersNumberDescription}", ` +
+                    `scriptDescription = "${req.body.scriptDescription}", ` +
+                    `scriptDuration = "${req.body.scriptDuration}", ` +
+                    `scriptPrice = "${req.body.scriptPrice}", ` +
+                    `scriptImage = "${req.body.scriptImage}" ` +
+                    `where scriptName = "${req.body.oldName}" `,
+
+                    {
+                        type: QueryTypes.UPDATE
+                    }
+                ).then(r => {
+                    res.send({success: true, message: '编辑成功'})
+                })
+                    .catch(err => {
+                        console.log(err);
+                        res.send(err)
+                    })
+            }
+        })
+
 
 };
 
-// Delete a Tutorial with the specified id in the request
-exports.delete = (req, res) => {
+exports.delete = async (req, res) => {
     const name = req.params.name;
-    console.log(req.params.name);
-    Script.destroy({
+    await Script.destroy({
         where: {
             scriptName: name
         }
-
     })
         .then(data => {
             if(data){
-                res.send('Successfully deleted.');
+                res.send({success: true, message: '删除成功'});
             } else {
                 res.status(404).send({
+                    success: false,
                     message: `Cannot find script with name ${name}`
                 });
             }
         })
         .catch(err => {
+            console.log(err)
             res.status(500).send({
                 message: `Some error occurred while retrieving script with name`
             })
         });
 };
 
-// Delete all Tutorials from the database.
-exports.deleteAll = (req, res) => {
+exports.findScriptByPlayersNumber = async (req, res) => {
+    console.log(req.params);
+    await Script.findAll({
+        attributes: ['scriptName', 'scriptType', 'scriptPlayersNumber', 'scriptPlayersNumberDescription', 'scriptDescription', 'scriptDuration', 'scriptPrice', 'scriptImage'],
+        where: { scriptPlayersNumber: req.params.playersNumber }
+    })
+        .then(data => {
+            if(data){
+                res.send(data);
+            }
+        })
+        .catch(err => {
+            res.status(500).send(err)
+            console.log(err)
+        })
 
-};
+}
 
-// Find all published Tutorials
-exports.findAllPublished = (req, res) => {
+exports.findScriptByType = async (req, res) => {
+    await Script.findAll({
+        attributes: ['scriptName', 'scriptType', 'scriptPlayersNumber', 'scriptPlayersNumberDescription', 'scriptDescription', 'scriptDuration', 'scriptPrice', 'scriptImage'],
+        where: {scriptType: {[Op.like]: `%${req.params.type}%`}}
+    })
+        .then(data => {
+            if(data){
+                res.send(data);
+            }
+        })
+        .catch((err) => {
+            res.status(500).send(err)
+            console.log(err)
+        })
 
-};
+}
 
-exports.getScriptsNumber = (req, res) => {
+exports.findScriptByTypeAndPlayersNumber = async (req, res) => {
+    await Script.findAll({
+        attributes: ['scriptName', 'scriptType', 'scriptPlayersNumber', 'scriptPlayersNumberDescription', 'scriptDescription', 'scriptDuration', 'scriptPrice', 'scriptImage'],
+        where: {
+            scriptType: {[Op.like]: `%${req.params.type}%`},
+            scriptPlayersNumber: req.params.number
+        }
+    })
+        .then(data => {
+            if(data){
+                res.send(data);
+            }
+        })
+        .catch((err) => {
+            res.status(500).send(err)
+            console.log(err)
+        })
 
 }
